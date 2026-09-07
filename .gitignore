@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Chrome unpacked-extension metadata
+_metadata/
+
+# OS
+.DS_Store
+Thumbs.db
