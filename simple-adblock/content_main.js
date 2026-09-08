@@ -204,18 +204,33 @@
   // Check every 50ms
   setInterval(handleAds, 50);
 
-  // Auto-dismiss interruption popups & keep video playing
+  // Auto-dismiss anti-adblock enforcement popups and "continue watching" interruptions
   const dismissInterruptionToast = () => {
     try {
-      const toasts = document.querySelectorAll(
-        "tp-yt-paper-toast, .toast-button, ytd-enforcement-message-view-model, tp-yt-paper-dialog"
-      );
-      toasts.forEach((t) => {
-        try {
-          const btn = t.querySelector("button, #button, #confirm-button");
-          if (btn) btn.click();
-          t.style.setProperty("display", "none", "important");
-        } catch (e) {}
+      // 1. YouTube anti-adblock enforcement dialogs
+      const enforcements = document.querySelectorAll("ytd-enforcement-message-view-model");
+      if (enforcements.length > 0) {
+        enforcements.forEach((el) => {
+          const dialog = el.closest("tp-yt-paper-dialog") || el.closest("ytd-popup-container") || el;
+          dialog.style.setProperty("display", "none", "important");
+          el.style.setProperty("display", "none", "important");
+        });
+
+        document.querySelectorAll("tp-yt-iron-overlay-backdrop, yt-iron-overlay-backdrop").forEach((bd) => {
+          bd.style.setProperty("display", "none", "important");
+        });
+
+        const video = document.querySelector("#movie_player video");
+        if (video && video.paused) {
+          video.play().catch(() => {});
+        }
+      }
+
+      // 2. YouTube "Video paused. Continue watching?" confirmation dialog
+      const confirmDialogs = document.querySelectorAll("yt-confirm-dialog-renderer");
+      confirmDialogs.forEach((cd) => {
+        const confirmBtn = cd.querySelector("#confirm-button, button");
+        if (confirmBtn) confirmBtn.click();
       });
     } catch (e) {}
   };
