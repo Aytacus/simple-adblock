@@ -28,7 +28,18 @@
     'ytd-promoted-sparkles-web-renderer',
     'ytd-promoted-video-renderer',
     'ytd-compact-promoted-video-renderer',
+    'ytd-player-legacy-desktop-watch-ads-renderer',
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"]',
+    'ytd-merch-shelf-renderer',
+    'ytd-action-companion-ad-renderer',
+    'ytd-banner-promo-renderer',
+    'ytd-statement-banner-renderer',
     '.ytd-companion-slot-renderer',
+    'yt-mealbar-promo-renderer',
+    'ytd-mealbar-promo-renderer',
+    '.ytp-ad-overlay-container',
+    '.ytp-ad-message-container',
+    '.ytp-ad-action-interstitial',
     '#player-ads',
     '#masthead-ad',
     'ytm-promoted-video-renderer',
@@ -86,6 +97,11 @@
             if (node.matches && node.matches(selector)) {
               node.style.setProperty("display", "none", "important");
               node.setAttribute("data-adblock-hidden", "true");
+            } else if (node.querySelectorAll) {
+              node.querySelectorAll(selector).forEach((el) => {
+                el.style.setProperty("display", "none", "important");
+                el.setAttribute("data-adblock-hidden", "true");
+              });
             }
           } catch (e) {}
         }

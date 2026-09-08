@@ -7,11 +7,40 @@
   pointer-events: none !important;
 }
 
-/* Outer page YouTube feed and masthead ads (outside movie_player) */
+/* YouTube In-Feed, Sidebar, Masthead, Companion and Overlay Ads */
 ytd-ad-slot-renderer,
 ytd-in-feed-ad-layout-renderer,
+ytd-in-feed-ad-renderer,
 ytd-banner-promo-renderer,
 ytd-statement-banner-renderer,
-#masthead-ad {
+#masthead-ad,
+ytd-display-ad-renderer,
+ytd-promoted-sparkles-web-renderer,
+ytd-promoted-video-renderer,
+ytd-compact-promoted-video-renderer,
+ytd-player-legacy-desktop-watch-ads-renderer,
+ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"],
+ytd-merch-shelf-renderer,
+ytd-action-companion-ad-renderer,
+.ytd-companion-slot-renderer,
+yt-mealbar-promo-renderer,
+ytd-mealbar-promo-renderer,
+.ytp-ad-overlay-container,
+.ytp-ad-message-container,
+.ytp-ad-action-interstitial,
+#player-ads {
   display: none !important;
+}
+
+/* YouTube Anti-Adblock "Kesinti mi yaşıyorsunuz? / Experiencing interruptions?" Toast & Warnings */
+tp-yt-paper-toast,
+yt-notification-action-renderer,
+ytd-notification-action-renderer,
+.yt-notification-action-renderer,
+#toast,
+ytd-enforcement-message-view-model {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }

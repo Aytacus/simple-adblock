@@ -32,11 +32,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     if (!enabled) {
       chrome.declarativeNetRequest.updateEnabledRulesets({
-        disableRuleIds: ["adblock_rules"]
+        disableRulesetIds: ["adblock_rules"]
       });
     } else {
       chrome.declarativeNetRequest.updateEnabledRulesets({
-        enableRuleIds: ["adblock_rules"]
+        enableRulesetIds: ["adblock_rules"]
       });
     }
 
