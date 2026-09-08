@@ -1,7 +1,7 @@
 (() => {
   // YouTube ad interceptor — runs in MAIN world
   // 1) Strip ad data from player responses so ads never load
-  // 2) Fallback: if ad still appears, fast-forward it (no DOM removal)
+  // 2) Fallback: if ad still appears, instant-skip it
 
   // --- Ad fields to remove from player responses ---
   const AD_FIELDS = [
@@ -86,26 +86,10 @@
     };
   } catch (e) {}
 
-  // --- ytcfg ad config cleanup ---
-  const clearConfig = (cfg) => {
-    try {
-      if (!cfg) return;
-      ["ADSENSE_ACCOUNT_ID", "AD_BREAKS_ENABLE", "GOOGLE_FEEDBACK_PRODUCT_ID"]
-        .forEach((k) => { try { delete cfg[k]; } catch (e) {} });
-    } catch (e) {}
-  };
-  try {
-    if (window.yt && window.yt.setConfig) {
-      const orig = window.yt.setConfig.bind(window.yt);
-      window.yt.setConfig = function (obj) { clearConfig(obj); return orig(obj); };
-    }
-    clearConfig(window.yt && window.yt.config_);
-  } catch (e) {}
-
   // --- Hook ytInitialPlayerResponse ---
-  // Embedded player response is set via assignment, bypasses fetch interception.
-  let _initialResp;
+  let _initialResp = window.ytInitialPlayerResponse;
   try {
+    if (_initialResp && typeof _initialResp === "object") stripAds(_initialResp, 0);
     Object.defineProperty(window, "ytInitialPlayerResponse", {
       configurable: true,
       get() { return _initialResp; },
@@ -115,7 +99,6 @@
       }
     });
   } catch (e) {}
-  try { if (window.ytInitialPlayerResponse) stripAds(window.ytInitialPlayerResponse, 0); } catch (e) {}
 
   // Clean embedded player response in ytplayer.config.args (may be a JSON string)
   try {
@@ -132,64 +115,70 @@
     }
   } catch (e) {}
 
-  // --- Fallback: fast-forward ads if they still appear ---
+  // --- Fallback: fast-forward & instant-skip ads if they appear ---
   let lastAdState = false;
-  let playerEl = null;
 
-  const getPlayer = () => {
-    try {
-      if (!playerEl || !playerEl.isConnected) {
-        playerEl = document.getElementById("movie_player");
-      }
-    } catch (e) { playerEl = null; }
-    return playerEl;
+  const isAdPlaying = (p) => {
+    if (!p) return false;
+    return p.classList.contains("ad-showing") || p.classList.contains("ad-interrupting");
   };
 
-  const isAd = (p) =>
-    p.classList.contains("ad-showing") ||
-    p.classList.contains("ad-interrupting");
-
-  const adsManagerSkip = (p) => {
+  const handleAds = () => {
     try {
-      if (typeof p.getAdsManager !== "function") return false;
-      const am = p.getAdsManager();
-      if (!am) return false;
-      if (typeof am.skip === "function") { am.skip(); return true; }
-      if (typeof am.destroy === "function") { am.destroy(); return true; }
-    } catch (e) {}
-    return false;
-  };
-
-  const fastForward = () => {
-    try {
-      const p = getPlayer();
+      const p = document.getElementById("movie_player");
       if (!p) return;
-      const adNow = isAd(p);
+
+      const adNow = isAdPlaying(p);
 
       if (adNow) {
-        if (adsManagerSkip(p)) { lastAdState = true; return; }
+        // 1. Skip via AdsManager if available
+        try {
+          if (typeof p.getAdsManager === "function") {
+            const am = p.getAdsManager();
+            if (am) {
+              if (typeof am.skip === "function") am.skip();
+              if (typeof am.destroy === "function") am.destroy();
+            }
+          }
+        } catch (e) {}
 
-        const sb = p.querySelector(
-          ".ytp-ad-skip-button-container button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button"
-        );
-        if (sb) {
-          try { sb.click(); } catch (e) {}
-          lastAdState = true;
-          return;
-        }
+        // 2. Click skip button if available
+        try {
+          const skipBtn = p.querySelector(
+            ".ytp-ad-skip-button-container button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-slot button, button.ytp-ad-skip-button-modern, .ytp-ad-overlay-close-button"
+          );
+          if (skipBtn) skipBtn.click();
+        } catch (e) {}
 
-        // Last resort: mute + fast-forward, save user settings
+        // 3. Fast-forward video ad to the end and mute
         const videos = p.querySelectorAll("video");
         videos.forEach((v) => {
           try {
-            if (!v.dataset.adblockOldRate) v.dataset.adblockOldRate = String(v.playbackRate);
-            if (!v.dataset.adblockOldMuted) v.dataset.adblockOldMuted = v.muted ? "true" : "false";
+            if (v.dataset.adblockOldMuted === undefined) {
+              v.dataset.adblockOldMuted = v.muted ? "true" : "false";
+            }
+            if (v.dataset.adblockOldRate === undefined) {
+              v.dataset.adblockOldRate = String(v.playbackRate || 1);
+            }
+
             v.muted = true;
-            v.playbackRate = 32;
+            v.playbackRate = 16;
+
+            if (!isNaN(v.duration) && v.duration > 0) {
+              v.currentTime = v.duration;
+            } else {
+              v.currentTime = 999999;
+            }
+
+            if (v.paused) {
+              v.play().catch(() => {});
+            }
           } catch (e) {}
         });
+
+        lastAdState = true;
       } else if (lastAdState) {
-        // Ad ended — restore user settings
+        // Ad just ended! Restore user's video settings
         const videos = p.querySelectorAll("video");
         videos.forEach((v) => {
           try {
@@ -201,24 +190,47 @@
               v.playbackRate = parseFloat(v.dataset.adblockOldRate) || 1;
               delete v.dataset.adblockOldRate;
             }
+            if (v.paused) {
+              v.play().catch(() => {});
+            }
           } catch (e) {}
         });
-      }
 
-      lastAdState = adNow;
+        lastAdState = false;
+      }
     } catch (e) {}
   };
 
-  setInterval(fastForward, 600);
+  // Check every 50ms
+  setInterval(handleAds, 50);
+
+  // Auto-dismiss interruption popups & keep video playing
+  const dismissInterruptionToast = () => {
+    try {
+      const toasts = document.querySelectorAll(
+        "tp-yt-paper-toast, .toast-button, ytd-enforcement-message-view-model, tp-yt-paper-dialog"
+      );
+      toasts.forEach((t) => {
+        try {
+          const btn = t.querySelector("button, #button, #confirm-button");
+          if (btn) btn.click();
+          t.style.setProperty("display", "none", "important");
+        } catch (e) {}
+      });
+    } catch (e) {}
+  };
+
+  setInterval(dismissInterruptionToast, 200);
 
   let mo;
   const watch = () => {
     const p = document.getElementById("movie_player");
-    if (!p) { setTimeout(watch, 500); return; }
+    if (!p) { setTimeout(watch, 200); return; }
     if (mo) mo.disconnect();
-    mo = new MutationObserver(() => { fastForward(); });
+    mo = new MutationObserver(() => { handleAds(); });
     mo.observe(p, { attributes: true, attributeFilter: ["class"] });
   };
   watch();
   document.addEventListener("yt-navigate-finish", watch);
+  document.addEventListener("DOMContentLoaded", watch);
 })();

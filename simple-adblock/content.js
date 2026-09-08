@@ -20,14 +20,6 @@
   ];
 
   const YOUTUBE_AD_SELECTORS = [
-    '.ytp-ad-module',
-    '.ytp-ad-player-overlay',
-    '.ytp-ad-text-overlay',
-    '.ytp-ad-image-overlay',
-    '.ytp-ad-overlay-container',
-    '.ytp-ad-skip-button-container',
-    '.ytp-ad-skip-button-modern',
-    '.ytp-skip-ad-button',
     'ytd-ad-slot-renderer',
     'ytd-display-ad-renderer',
     'ytd-in-feed-ad-layout-renderer',
@@ -125,28 +117,10 @@
     }
   });
 
-  // Hide passive banner overlays on YouTube (not in-player ads)
-  function watchYouTubeAds() {
-    if (location.hostname.includes("youtube.com")) {
-      setInterval(() => {
-        if (!enabled) return;
-        const p = document.querySelector("#movie_player");
-        if (!p) return;
-        p.querySelectorAll(".ytp-ad-overlay-container, .ytp-ad-image-overlay").forEach((el) => {
-          try {
-            el.style.setProperty("display", "none", "important");
-            el.setAttribute("data-adblock-hidden", "true");
-          } catch (e) {}
-        });
-      }, 5000);
-    }
-  }
-
   function start() {
     if (enabled) {
       hideAds();
       observeDom();
-      watchYouTubeAds();
     }
   }
 })();
